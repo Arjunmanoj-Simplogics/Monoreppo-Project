@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import Link from 'next/link';
 
 interface Todo {
   id: number;
@@ -9,20 +11,40 @@ interface Todo {
   completed: boolean;
 }
 
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export default function Home() {
+  const router = useRouter();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    // Check if user is registered
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      router.push('/register');
+      return;
+    }
+    setUser(JSON.parse(storedUser));
     fetchTodos();
-  }, []);
+  }, [router]);
 
   const fetchTodos = async () => {
     try {
       const response = await axios.get('http://localhost:3001/todos');
       setTodos(response.data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching todos:', error);
+      setError('Failed to load todos');
     }
   };
 
@@ -37,8 +59,10 @@ export default function Home() {
       });
       setTodos([...todos, response.data]);
       setNewTodo('');
+      setError(null);
     } catch (error) {
       console.error('Error adding todo:', error);
+      setError('Failed to add todo');
     }
   };
 
@@ -54,16 +78,58 @@ export default function Home() {
       setTodos(todos.map(t =>
         t.id === id ? { ...t, completed: !t.completed } : t
       ));
+      setError(null);
     } catch (error) {
       console.error('Error toggling todo:', error);
+      setError('Failed to update todo');
     }
   };
+
+  const deleteTodo = async (id: number) => {
+    try {
+      setIsDeleting(id);
+      await axios.delete(`http://localhost:3001/todos/${id}`);
+      setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+      setError('Failed to delete todo');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    router.push('/register');
+  };
+
+  if (!user) {
+    return null; // Will redirect to register page
+  }
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Todo App</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Todo App</h1>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Welcome, {user.firstName}!</p>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-red-500 hover:underline"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
         
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={addTodo} className="mb-8">
           <div className="flex gap-2">
             <input
@@ -97,6 +163,16 @@ export default function Home() {
               <span className={`flex-1 ${todo.completed ? 'line-through text-gray-500' : ''}`}>
                 {todo.title}
               </span>
+              <button
+                onClick={() => deleteTodo(todo.id)}
+                disabled={isDeleting === todo.id}
+                className={`px-3 py-1 text-sm text-white rounded focus:outline-none focus:ring-2 focus:ring-red-500
+                  ${isDeleting === todo.id 
+                    ? 'bg-red-300 cursor-not-allowed' 
+                    : 'bg-red-500 hover:bg-red-600'}`}
+              >
+                {isDeleting === todo.id ? 'Deleting...' : 'Delete'}
+              </button>
             </li>
           ))}
         </ul>
