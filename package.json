@@ -1,0 +1,21 @@
+{
+  "name": "monorepo-project",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "ui",
+    "server"
+  ],
+  "scripts": {
+    "dev:ui": "cd ui && npm run dev",
+    "dev:server": "cd server && npm run start:dev",
+    "build:ui": "cd ui && npm run build",
+    "build:server": "cd server && npm run build",
+    "start:ui": "cd ui && npm run start",
+    "start:server": "cd server && npm run start",
+    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:server\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
